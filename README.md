@@ -1,20 +1,27 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# CompAI - Static Image Compositor
 
-# Run and deploy your AI Studio app
+This is a **pure static** HTML/JS application for generating product image collages.  
+No build steps, no Node.js, and no backend API keys required.
 
-This contains everything you need to run your app locally.
+## Features
+- **Smart Layouts:** Choose from 8 predefined templates.
+- **Variable Pool:** Upload multiple product images to generate unique combinations instantly.
+- **Fixed Hero:** Lock a specific image to the main slot.
+- **High Res Export:** Support for 1K, 2K, and 4K output.
+- **Package Download:** Download the composite + source images in a single ZIP.
+- **Client-side only:** All processing happens in your browser. Images are never uploaded to a server.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1J9ViHOH7q5jGzzaFZZD8sctR2vy1xEAq
+## Deployment Guide (Vercel)
 
-## Run Locally
+1.  **Create Repo:** Push this folder to a GitHub repository.
+2.  **Import to Vercel:** Go to Vercel dashboard -> Add New -> Project -> Import your repo.
+3.  **Configure:**
+    -   **Framework Preset:** Select **Other** (or None).
+    -   **Build Command:** Leave empty.
+    -   **Output Directory:** Leave empty (it defaults to root).
+4.  **Deploy:** Click Deploy.
 
-**Prerequisites:**  Node.js
+That's it! Your site will be live instantly.
 
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Local Development
+Simply double-click `index.html` to open it in your browser.

@@ -1,18 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CompAI - Intelligent Composition</title>
+    <title>CompAI - Static Composition Tool</title>
+    
+    <!-- External Libraries via CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+    <!-- Tailwind Config -->
     <script>
       tailwind.config = {
         theme: {
           extend: {
             colors: {
               gray: {
+                950: '#0b0f19', // Deep dark background
                 900: '#111827',
                 800: '#1f2937',
                 700: '#374151',
@@ -22,18 +27,891 @@
         }
       }
     </script>
-  <script type="importmap">
+    
+    <!-- Custom CSS -->
+    <style>
+        /* Custom Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1f2937;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+        }
+        
+        /* Spinner Animation */
+        .spinner {
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 50%;
+            border-top: 2px solid #fff;
+            width: 16px;
+            height: 16px;
+            -webkit-animation: spin 1s linear infinite;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Utility */
+        body { overflow-y: scroll; }
+        .aspect-square { aspect-ratio: 1 / 1; }
+    </style>
+<script type="importmap">
 {
   "imports": {
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3"
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.40.0",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4"
   }
 }
 </script>
 </head>
-  <body class="bg-gray-950 text-white antialiased">
-    <div id="root"></div>
-  </body>
+<body class="bg-gray-950 text-white antialiased font-sans min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="border-b border-gray-800 bg-gray-950/80 backdrop-blur sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                    <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                    </svg>
+                </div>
+                <h1 class="text-xl font-bold tracking-tight">CompAI <span class="font-normal text-gray-500 text-sm ml-2 hidden sm:inline">Static Edition</span></h1>
+            </div>
+            
+            <button id="btn-reset" class="hidden text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800 px-3 py-1.5 rounded-md transition-colors flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Reset Project
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 py-8 w-full">
+        
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
+            
+            <!-- LEFT COLUMN: Inputs -->
+            <div class="lg:col-span-2 space-y-10">
+                
+                <!-- 1. Templates -->
+                <section>
+                    <h3 class="text-lg font-medium text-gray-200 mb-4 flex items-center gap-2">
+                        <span class="bg-gray-800 w-6 h-6 rounded-full flex items-center justify-center text-xs border border-gray-700">1</span>
+                        Select Layout
+                    </h3>
+                    <div id="template-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <!-- Templates injected by JS -->
+                    </div>
+                </section>
+
+                <!-- 2. Uploads -->
+                <section>
+                    <div class="flex justify-between items-end mb-4">
+                        <h3 class="text-lg font-medium text-gray-200 flex items-center gap-2">
+                            <span class="bg-gray-800 w-6 h-6 rounded-full flex items-center justify-center text-xs border border-gray-700">2</span>
+                            Upload Assets
+                        </h3>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- Fixed Image Input -->
+                        <div class="md:col-span-1 space-y-3">
+                            <label class="text-sm font-semibold text-indigo-400 flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                                Fixed Hero Image
+                            </label>
+                            <p class="text-xs text-gray-500">Always appears in the main/largest slot.</p>
+                            
+                            <div id="dropzone-fixed" class="relative aspect-[3/4] border-2 border-dashed border-gray-700 rounded-xl bg-gray-900/50 hover:border-indigo-400 hover:bg-gray-800/50 transition-all cursor-pointer overflow-hidden group">
+                                <input type="file" id="input-fixed" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                                
+                                <!-- Empty State -->
+                                <div id="fixed-empty" class="absolute inset-0 flex flex-col items-center justify-center text-center p-4 pointer-events-none">
+                                    <div class="p-3 bg-gray-800 rounded-full mb-2 group-hover:bg-gray-700 transition-colors">
+                                        <svg class="w-6 h-6 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                    </div>
+                                    <span class="text-xs text-gray-400">Drag or click to upload</span>
+                                </div>
+
+                                <!-- Preview State -->
+                                <img id="fixed-preview" class="hidden absolute inset-0 w-full h-full object-cover" />
+                                <div id="fixed-overlay" class="hidden absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                    <span class="text-xs font-medium text-white bg-black/50 px-2 py-1 rounded">Change</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Variable Images Input -->
+                        <div class="md:col-span-2 space-y-3 flex flex-col h-full">
+                            <div class="flex justify-between items-center">
+                                <label class="text-sm font-semibold text-green-400 flex items-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                    Variable Pool (<span id="var-count">0</span>/20)
+                                </label>
+                                <button id="btn-clear-var" class="hidden text-[10px] uppercase font-bold text-red-400 hover:text-red-300 transition-colors">
+                                   Clear
+                                </button>
+                            </div>
+                            <p class="text-xs text-gray-500">Supports selecting multiple files.</p>
+
+                            <div class="flex-1 bg-gray-900/30 rounded-xl border border-gray-800 p-3 flex flex-col gap-3">
+                                <!-- Grid Container -->
+                                <div id="var-grid" class="flex-1 min-h-[160px] max-h-[400px] overflow-y-auto custom-scrollbar grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2 content-start">
+                                    <!-- Empty placeholder -->
+                                    <div class="col-span-full h-32 flex flex-col items-center justify-center text-gray-600 border-2 border-dashed border-gray-800 rounded-lg">
+                                        <span class="text-sm">Pool is empty</span>
+                                    </div>
+                                </div>
+
+                                <!-- Dropzone -->
+                                <div class="relative border-2 border-dashed border-gray-700 hover:border-green-400 hover:bg-gray-800/50 rounded-lg p-3 text-center transition-colors cursor-pointer shrink-0">
+                                    <input type="file" id="input-variable" multiple accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                                    <div class="flex flex-row items-center justify-center gap-2 pointer-events-none">
+                                        <svg class="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                        </svg>
+                                        <span class="text-sm text-gray-300 font-medium">Click to add files (Max 20)</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+
+            <!-- RIGHT COLUMN: Controls -->
+            <div class="lg:col-span-1">
+                <div class="sticky top-24 space-y-6">
+                    <h3 class="text-lg font-medium text-gray-200 flex items-center gap-2">
+                        <span class="bg-gray-800 w-6 h-6 rounded-full flex items-center justify-center text-xs border border-gray-700">3</span>
+                        Configure
+                    </h3>
+                    
+                    <div class="p-6 bg-gray-900 rounded-xl border border-gray-800 space-y-6 shadow-xl">
+                        
+                        <!-- Aspect Ratio -->
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Aspect Ratio</label>
+                            <div id="ratio-controls" class="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                                <!-- Generated by JS -->
+                            </div>
+                        </div>
+
+                        <!-- Quality -->
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Output Resolution</label>
+                            <div class="flex gap-2">
+                                <button data-quality="1080" class="btn-quality flex-1 px-3 py-2 text-sm rounded-md border transition-all bg-indigo-600 border-indigo-500 text-white">1K</button>
+                                <button data-quality="2160" class="btn-quality flex-1 px-3 py-2 text-sm rounded-md border transition-all border-gray-700 text-gray-300 hover:bg-gray-800">2K</button>
+                                <button data-quality="3840" class="btn-quality flex-1 px-3 py-2 text-sm rounded-md border transition-all border-gray-700 text-gray-300 hover:bg-gray-800">4K</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Generate Button -->
+                    <button id="btn-generate" class="w-full py-4 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-2 transition-all bg-gray-800 text-gray-500 cursor-not-allowed" disabled>
+                        Add more images (Min 3)
+                    </button>
+                    
+                    <!-- Info Box -->
+                    <div class="p-4 bg-gray-900/50 rounded-lg border border-gray-800 text-xs text-gray-400 leading-relaxed">
+                        <p class="mb-2"><strong class="text-indigo-400">Fixed Image:</strong> Locked to the main slot. Center cropped.</p>
+                        <p><strong class="text-green-400">Variable Pool:</strong> Randomly fills remaining slots. No duplicates per composite.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RESULTS SECTION -->
+        <section id="results-section" class="hidden mt-16 pt-8 border-t border-gray-800">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center sticky top-0 bg-gray-950/95 backdrop-blur-md z-30 py-4 mb-6 border-b border-gray-800 gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-white">Results</h2>
+                    <p class="text-gray-400 text-sm">20 unique variations generated</p>
+                </div>
+                <button id="btn-download-all" class="w-full sm:w-auto bg-green-600 hover:bg-green-500 text-white px-6 py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 shadow-lg shadow-green-900/20">
+                    <span class="text">Download All (.ZIP)</span>
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                </button>
+            </div>
+
+            <div id="gallery-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 pb-12">
+                <!-- Gallery Items injected here -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ZOOM MODAL -->
+    <div id="zoom-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
+        <div class="relative w-full max-w-5xl h-full max-h-[90vh] flex flex-col items-center justify-center">
+            
+            <!-- Close -->
+            <button id="btn-close-zoom" class="absolute top-4 right-4 z-50 text-white hover:text-gray-300 bg-black/50 rounded-full p-2 backdrop-blur">
+                <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+
+            <!-- Image Container -->
+            <div class="relative w-full h-full flex items-center justify-center">
+                 <img id="zoom-img" class="max-w-full max-h-full object-contain rounded shadow-2xl border border-gray-800 bg-white" />
+            </div>
+
+            <!-- Actions -->
+            <div class="absolute bottom-8 flex gap-4">
+                 <button id="btn-download-package" class="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-xl font-bold shadow-xl flex items-center gap-2 transform hover:scale-105 transition-transform">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Download Package (ZIP)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // --- CONSTANTS ---
+        const TEMPLATES = [
+            {
+                id: 'grid-2x2', name: 'Classic Grid',
+                slots: [
+                    { id: 's1', x: 0.02, y: 0.02, w: 0.47, h: 0.47, zIndex: 1 },
+                    { id: 's2', x: 0.51, y: 0.02, w: 0.47, h: 0.47, zIndex: 1 },
+                    { id: 's3', x: 0.02, y: 0.51, w: 0.47, h: 0.47, zIndex: 1 },
+                    { id: 's4', x: 0.51, y: 0.51, w: 0.47, h: 0.47, zIndex: 1 },
+                ]
+            },
+            {
+                id: 'hero-left', name: 'Hero Left',
+                slots: [
+                    { id: 'hero', x: 0.0, y: 0.0, w: 0.65, h: 1.0, zIndex: 1 },
+                    { id: 'd1', x: 0.67, y: 0.0, w: 0.33, h: 0.32, zIndex: 2 },
+                    { id: 'd2', x: 0.67, y: 0.34, w: 0.33, h: 0.32, zIndex: 2 },
+                    { id: 'd3', x: 0.67, y: 0.68, w: 0.33, h: 0.32, zIndex: 2 },
+                ]
+            },
+            {
+                id: 'editorial-right', name: 'Editorial Right',
+                slots: [
+                    { id: 'd1', x: 0.02, y: 0.02, w: 0.35, h: 0.47, zIndex: 1 },
+                    { id: 'd2', x: 0.02, y: 0.51, w: 0.35, h: 0.47, zIndex: 1 },
+                    { id: 'hero', x: 0.39, y: 0.02, w: 0.59, h: 0.96, zIndex: 1 },
+                ]
+            },
+            {
+                id: 'product-showcase', name: 'Product Showcase',
+                slots: [
+                    { id: 'top', x: 0.02, y: 0.02, w: 0.96, h: 0.60, zIndex: 1 },
+                    { id: 'bot-l', x: 0.02, y: 0.64, w: 0.47, h: 0.34, zIndex: 1 },
+                    { id: 'bot-r', x: 0.51, y: 0.64, w: 0.47, h: 0.34, zIndex: 1 },
+                ]
+            },
+            {
+                id: 'bottom-focus', name: 'Bottom Focus',
+                slots: [
+                    { id: 'tl', x: 0.02, y: 0.02, w: 0.47, h: 0.40, zIndex: 1 },
+                    { id: 'tr', x: 0.51, y: 0.02, w: 0.47, h: 0.40, zIndex: 1 },
+                    { id: 'bot', x: 0.02, y: 0.44, w: 0.96, h: 0.54, zIndex: 1 },
+                ]
+            },
+            {
+                id: 'grid-six', name: 'Gallery Six',
+                slots: [
+                    { id: 'r1c1', x: 0.02, y: 0.02, w: 0.31, h: 0.47, zIndex: 1 },
+                    { id: 'r1c2', x: 0.345, y: 0.02, w: 0.31, h: 0.47, zIndex: 1 },
+                    { id: 'r1c3', x: 0.67, y: 0.02, w: 0.31, h: 0.47, zIndex: 1 },
+                    { id: 'r2c1', x: 0.02, y: 0.51, w: 0.31, h: 0.47, zIndex: 1 },
+                    { id: 'r2c2', x: 0.345, y: 0.51, w: 0.31, h: 0.47, zIndex: 1 },
+                    { id: 'r2c3', x: 0.67, y: 0.51, w: 0.31, h: 0.47, zIndex: 1 },
+                ]
+            },
+            {
+                id: 'quad-gallery', name: 'Quad Gallery',
+                slots: [
+                    { id: 'top', x: 0.02, y: 0.02, w: 0.96, h: 0.60, zIndex: 1 },
+                    { id: 'b1', x: 0.02, y: 0.64, w: 0.31, h: 0.34, zIndex: 1 },
+                    { id: 'b2', x: 0.345, y: 0.64, w: 0.31, h: 0.34, zIndex: 1 },
+                    { id: 'b3', x: 0.67, y: 0.64, w: 0.31, h: 0.34, zIndex: 1 },
+                ]
+            },
+            {
+                id: 'center-hero', name: 'Center Hero',
+                slots: [
+                    { id: 'l1', x: 0.02, y: 0.02, w: 0.25, h: 0.47, zIndex: 1 },
+                    { id: 'l2', x: 0.02, y: 0.51, w: 0.25, h: 0.47, zIndex: 1 },
+                    { id: 'center', x: 0.29, y: 0.02, w: 0.42, h: 0.96, zIndex: 1 },
+                    { id: 'r1', x: 0.73, y: 0.02, w: 0.25, h: 0.47, zIndex: 1 },
+                    { id: 'r2', x: 0.73, y: 0.51, w: 0.25, h: 0.47, zIndex: 1 },
+                ]
+            }
+        ];
+
+        const ASPECT_RATIOS = {
+            "1:1": 1,
+            "3:4": 3/4,
+            "4:3": 4/3,
+            "9:16": 9/16,
+            "16:9": 16/9,
+            "1200x628": 1200/628,
+            "900x1600": 900/1600
+        };
+
+        const TEMPLATE_RULES = {
+            'hero-left': { heroSlotId: 'hero' },
+            'editorial-right': { heroSlotId: 'hero' },
+            'product-showcase': { heroSlotId: 'top' },
+            'quad-gallery': { heroSlotId: 'top' },
+            'bottom-focus': { heroSlotId: 'bot' },
+            'center-hero': { heroSlotId: 'center' },
+        };
+
+        // --- STATE ---
+        let state = {
+            selectedTemplateId: TEMPLATES[0].id,
+            fixedImage: null, // { id, url, width, height, file, imgElement }
+            variableImages: [], // Array of { id, url, width, height, file, imgElement }
+            aspectRatio: 1,
+            quality: 1080,
+            generatedJobs: [],
+            loadedImagesMap: new Map(), // id -> HTMLImageElement
+            zoomedJob: null
+        };
+
+        // --- DOM ELEMENTS ---
+        const els = {
+            templateGrid: document.getElementById('template-grid'),
+            inputFixed: document.getElementById('input-fixed'),
+            fixedEmpty: document.getElementById('fixed-empty'),
+            fixedPreview: document.getElementById('fixed-preview'),
+            fixedOverlay: document.getElementById('fixed-overlay'),
+            inputVariable: document.getElementById('input-variable'),
+            varGrid: document.getElementById('var-grid'),
+            varCount: document.getElementById('var-count'),
+            btnClearVar: document.getElementById('btn-clear-var'),
+            ratioControls: document.getElementById('ratio-controls'),
+            btnGenerate: document.getElementById('btn-generate'),
+            resultsSection: document.getElementById('results-section'),
+            galleryGrid: document.getElementById('gallery-grid'),
+            btnDownloadAll: document.getElementById('btn-download-all'),
+            zoomModal: document.getElementById('zoom-modal'),
+            zoomImg: document.getElementById('zoom-img'),
+            btnCloseZoom: document.getElementById('btn-close-zoom'),
+            btnDownloadPackage: document.getElementById('btn-download-package'),
+            btnReset: document.getElementById('btn-reset')
+        };
+
+        // --- INIT ---
+        function init() {
+            renderTemplates();
+            renderRatioControls();
+            setupEventListeners();
+        }
+
+        function setupEventListeners() {
+            // Template Selection
+            els.templateGrid.addEventListener('click', (e) => {
+                const btn = e.target.closest('button');
+                if (btn) selectTemplate(btn.dataset.id);
+            });
+
+            // Ratio Selection
+            els.ratioControls.addEventListener('click', (e) => {
+                const btn = e.target.closest('button');
+                if (btn) selectRatio(parseFloat(btn.dataset.value));
+            });
+
+            // Quality Selection
+            document.querySelectorAll('.btn-quality').forEach(btn => {
+                btn.addEventListener('click', () => selectQuality(parseInt(btn.dataset.quality), btn));
+            });
+
+            // Upload Fixed
+            els.inputFixed.addEventListener('change', (e) => handleUploadFixed(e.target.files));
+
+            // Upload Variable
+            els.inputVariable.addEventListener('change', (e) => handleUploadVariable(e.target.files));
+
+            // Clear Variable
+            els.btnClearVar.addEventListener('click', clearVariablePool);
+
+            // Generate
+            els.btnGenerate.addEventListener('click', generate);
+
+            // Download All
+            els.btnDownloadAll.addEventListener('click', downloadAll);
+
+            // Zoom Interactions
+            els.galleryGrid.addEventListener('click', (e) => {
+                const zoomBtn = e.target.closest('.btn-zoom');
+                const dlBtn = e.target.closest('.btn-dl-pkg');
+                
+                if (zoomBtn) {
+                    const idx = parseInt(zoomBtn.dataset.idx);
+                    openZoom(idx);
+                } else if (dlBtn) {
+                    const idx = parseInt(dlBtn.dataset.idx);
+                    downloadPackage(state.generatedJobs[idx]);
+                }
+            });
+
+            els.btnCloseZoom.addEventListener('click', closeZoom);
+            els.zoomModal.addEventListener('click', (e) => {
+                if (e.target === els.zoomModal) closeZoom();
+            });
+
+            els.btnDownloadPackage.addEventListener('click', () => {
+                if (state.zoomedJob) downloadPackage(state.zoomedJob);
+            });
+
+            // Reset
+            els.btnReset.addEventListener('click', resetProject);
+        }
+
+        // --- RENDERERS ---
+
+        function renderTemplates() {
+            els.templateGrid.innerHTML = TEMPLATES.map(t => {
+                const isSelected = t.id === state.selectedTemplateId;
+                const borderClass = isSelected ? 'border-indigo-500 bg-indigo-500/10' : 'border-gray-700 bg-gray-800 hover:border-gray-500';
+                
+                // Mini preview slots
+                const slotsHtml = t.slots.map(s => `
+                    <div class="absolute bg-gray-600 border border-gray-800" 
+                        style="left:${s.x*100}%; top:${s.y*100}%; width:${s.w*100}%; height:${s.h*100}%;">
+                    </div>
+                `).join('');
+
+                return `
+                    <button data-id="${t.id}" class="p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${borderClass}">
+                        <div class="relative w-12 h-12 bg-gray-900 rounded border border-gray-600 overflow-hidden">
+                            ${slotsHtml}
+                        </div>
+                        <span class="text-xs font-medium text-gray-300">${t.name}</span>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function selectTemplate(id) {
+            state.selectedTemplateId = id;
+            renderTemplates();
+        }
+
+        function renderRatioControls() {
+            els.ratioControls.innerHTML = Object.entries(ASPECT_RATIOS).map(([name, value]) => {
+                const isActive = Math.abs(state.aspectRatio - value) < 0.001;
+                const styleClass = isActive 
+                    ? 'bg-indigo-600 border-indigo-500 text-white' 
+                    : 'border-gray-700 text-gray-300 hover:bg-gray-800';
+                return `<button data-value="${value}" class="px-2 py-2 text-xs font-medium rounded-md border transition-all ${styleClass}">${name}</button>`;
+            }).join('');
+        }
+
+        function selectRatio(val) {
+            state.aspectRatio = val;
+            renderRatioControls();
+        }
+
+        function selectQuality(val, btnElement) {
+            state.quality = val;
+            document.querySelectorAll('.btn-quality').forEach(b => {
+                b.className = 'btn-quality flex-1 px-3 py-2 text-sm rounded-md border transition-all border-gray-700 text-gray-300 hover:bg-gray-800';
+            });
+            btnElement.className = 'btn-quality flex-1 px-3 py-2 text-sm rounded-md border transition-all bg-indigo-600 border-indigo-500 text-white';
+        }
+
+        // --- IMAGE HANDLING ---
+
+        async function loadImageData(file) {
+            return new Promise((resolve) => {
+                const url = URL.createObjectURL(file);
+                const img = new Image();
+                img.onload = () => {
+                    resolve({
+                        id: Math.random().toString(36).substr(2, 9),
+                        file: file,
+                        url: url,
+                        width: img.width,
+                        height: img.height,
+                        imgElement: img // Keep ref for canvas drawing
+                    });
+                };
+                img.src = url;
+            });
+        }
+
+        async function handleUploadFixed(files) {
+            if (!files.length) return;
+            const file = files[0];
+            const data = await loadImageData(file);
+            
+            // Cleanup old
+            if (state.fixedImage) URL.revokeObjectURL(state.fixedImage.url);
+            
+            state.fixedImage = data;
+            state.loadedImagesMap.set(data.id, data.imgElement);
+            
+            // UI Update
+            els.fixedEmpty.classList.add('hidden');
+            els.fixedPreview.src = data.url;
+            els.fixedPreview.classList.remove('hidden');
+            els.fixedOverlay.classList.remove('hidden');
+            
+            updateGenerateButton();
+            checkResetBtn();
+        }
+
+        async function handleUploadVariable(files) {
+            if (!files.length) return;
+            const newFiles = Array.from(files);
+            
+            // Limit to 20
+            const currentCount = state.variableImages.length;
+            const remaining = 20 - currentCount;
+            if (newFiles.length > remaining) {
+                alert(`Max 20 images allowed. Added first ${remaining} images.`);
+                newFiles.length = remaining;
+            }
+
+            for (const file of newFiles) {
+                const data = await loadImageData(file);
+                state.variableImages.push(data);
+                state.loadedImagesMap.set(data.id, data.imgElement);
+            }
+
+            renderVariableGrid();
+            updateGenerateButton();
+            checkResetBtn();
+        }
+
+        function renderVariableGrid() {
+            els.varCount.textContent = state.variableImages.length;
+            
+            if (state.variableImages.length > 0) {
+                els.btnClearVar.classList.remove('hidden');
+                els.varGrid.innerHTML = state.variableImages.map(img => `
+                    <div class="relative aspect-square rounded-lg overflow-hidden border border-gray-700 bg-gray-900 shadow-sm group">
+                        <img src="${img.url}" class="w-full h-full object-cover" />
+                        <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors"></div>
+                    </div>
+                `).join('');
+            } else {
+                els.btnClearVar.classList.add('hidden');
+                els.varGrid.innerHTML = `
+                    <div class="col-span-full h-32 flex flex-col items-center justify-center text-gray-600 border-2 border-dashed border-gray-800 rounded-lg">
+                        <span class="text-sm">Pool is empty</span>
+                    </div>
+                `;
+            }
+        }
+
+        function clearVariablePool() {
+            if (!confirm("Clear all variable images?")) return;
+            state.variableImages.forEach(img => URL.revokeObjectURL(img.url));
+            state.variableImages = [];
+            renderVariableGrid();
+            updateGenerateButton();
+            checkResetBtn();
+        }
+
+        function updateGenerateButton() {
+            const total = (state.fixedImage ? 1 : 0) + state.variableImages.length;
+            const canGen = total >= 3;
+            
+            if (canGen) {
+                els.btnGenerate.disabled = false;
+                els.btnGenerate.className = "w-full py-4 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-2 transition-all bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-500/20";
+                els.btnGenerate.innerHTML = "Generate 20 Composites";
+            } else {
+                els.btnGenerate.disabled = true;
+                els.btnGenerate.className = "w-full py-4 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-2 transition-all bg-gray-800 text-gray-500 cursor-not-allowed";
+                els.btnGenerate.innerHTML = "Add more images (Min 3)";
+            }
+        }
+
+        function checkResetBtn() {
+            const hasData = state.fixedImage || state.variableImages.length > 0 || state.generatedJobs.length > 0;
+            if (hasData) els.btnReset.classList.remove('hidden');
+            else els.btnReset.classList.add('hidden');
+        }
+
+        function resetProject() {
+            if (!confirm("Reset everything?")) return;
+            location.reload(); 
+        }
+
+        // --- GENERATION LOGIC ---
+
+        function shuffle(array) {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex != 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        }
+
+        function calculateSmartCrop(imgData, targetRatio) {
+            const imgW = imgData.width;
+            const imgH = imgData.height;
+            const imgRatio = imgW / imgH;
+            
+            let cropW, cropH, cropX, cropY;
+
+            // Default center crop (0.5, 0.5) logic since we removed AI
+            if (imgRatio > targetRatio) {
+                cropH = imgH;
+                cropW = cropH * targetRatio;
+                cropX = (imgW - cropW) / 2;
+                cropY = 0;
+            } else {
+                cropW = imgW;
+                cropH = cropW / targetRatio;
+                cropY = (imgH - cropH) / 2;
+                cropX = 0;
+            }
+            return { x: cropX, y: cropY, w: cropW, h: cropH };
+        }
+
+        function generate() {
+            els.btnGenerate.innerHTML = `<div class="spinner"></div> Generating...`;
+            els.btnGenerate.disabled = true;
+
+            setTimeout(() => {
+                const template = TEMPLATES.find(t => t.id === state.selectedTemplateId);
+                const jobs = [];
+                const rules = TEMPLATE_RULES[template.id] || {};
+                
+                // Hero logic
+                let heroSlotId = rules.heroSlotId;
+                if (!heroSlotId && template.slots.length > 0) heroSlotId = template.slots[0].id;
+
+                for (let i = 0; i < 20; i++) {
+                    const assignments = [];
+                    let pool = [...state.variableImages];
+
+                    // 1. Assign Hero
+                    if (state.fixedImage && heroSlotId) {
+                        const slot = template.slots.find(s => s.id === heroSlotId);
+                        const ratio = (slot.w / slot.h) * state.aspectRatio;
+                        assignments.push({
+                            slotId: heroSlotId,
+                            imageId: state.fixedImage.id,
+                            crop: calculateSmartCrop(state.fixedImage, ratio)
+                        });
+                    } else if (heroSlotId && pool.length > 0) {
+                         const hero = pool[i % pool.length];
+                         const slot = template.slots.find(s => s.id === heroSlotId);
+                         assignments.push({
+                            slotId: heroSlotId,
+                            imageId: hero.id,
+                            crop: calculateSmartCrop(hero, (slot.w / slot.h) * state.aspectRatio)
+                         });
+                         // Remove hero from pool for this job
+                         pool = pool.filter(img => img.id !== hero.id);
+                    }
+
+                    // 2. Fill rest
+                    pool = shuffle(pool);
+                    const remainingSlots = template.slots.filter(s => !assignments.find(a => a.slotId === s.id));
+                    
+                    for (const slot of remainingSlots) {
+                        if (pool.length === 0) break;
+                        const img = pool[0];
+                        assignments.push({
+                            slotId: slot.id,
+                            imageId: img.id,
+                            crop: calculateSmartCrop(img, (slot.w / slot.h) * state.aspectRatio)
+                        });
+                        pool.shift();
+                    }
+
+                    jobs.push({
+                        id: i,
+                        template: template,
+                        assignments: assignments
+                    });
+                }
+
+                state.generatedJobs = jobs;
+                renderGallery();
+                els.resultsSection.classList.remove('hidden');
+                els.resultsSection.scrollIntoView({ behavior: 'smooth' });
+                updateGenerateButton(); // Reset button text
+                checkResetBtn();
+            }, 100);
+        }
+
+        // --- CANVAS RENDERING ---
+
+        async function renderJobToCanvas(job, widthMultiplier = 1) {
+            const canvas = document.createElement('canvas');
+            const BASE = 1200 * widthMultiplier;
+            const W = BASE;
+            const H = BASE / state.aspectRatio;
+
+            canvas.width = W;
+            canvas.height = H;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, W, H);
+
+            // Sort by z-index
+            const sortedSlots = [...job.template.slots].sort((a,b) => a.zIndex - b.zIndex);
+
+            for (const slot of sortedSlots) {
+                const assignment = job.assignments.find(a => a.slotId === slot.id);
+                if (!assignment) continue;
+
+                const img = state.loadedImagesMap.get(assignment.imageId);
+                if (!img) continue;
+
+                const dx = slot.x * W;
+                const dy = slot.y * H;
+                const dw = slot.w * W;
+                const dh = slot.h * H;
+                const rad = slot.radius ? slot.radius * W : 0; // Simplified radius logic
+
+                ctx.save();
+                ctx.beginPath();
+                // Simple rect for browser compatibility if roundRect missing
+                if (ctx.roundRect) ctx.roundRect(dx, dy, dw, dh, rad || 0);
+                else ctx.rect(dx, dy, dw, dh);
+                
+                ctx.clip();
+                ctx.drawImage(img, assignment.crop.x, assignment.crop.y, assignment.crop.w, assignment.crop.h, dx, dy, dw, dh);
+                ctx.restore();
+            }
+
+            return canvas;
+        }
+
+        async function renderGallery() {
+            els.galleryGrid.innerHTML = '';
+            
+            for (let i = 0; i < state.generatedJobs.length; i++) {
+                const job = state.generatedJobs[i];
+                // Low res preview (multiplier 0.3)
+                const canvas = await renderJobToCanvas(job, 0.3);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+                const div = document.createElement('div');
+                div.className = "group relative rounded-lg overflow-hidden border border-gray-800 bg-gray-900 shadow-lg";
+                div.style.aspectRatio = `${state.aspectRatio}`;
+                
+                div.innerHTML = `
+                    <img src="${dataUrl}" class="w-full h-full object-contain bg-white" />
+                    <!-- Hover -->
+                    <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center gap-3 backdrop-blur-[2px]">
+                        <button data-idx="${i}" class="btn-zoom flex items-center gap-2 px-4 py-1.5 bg-gray-700 text-white rounded-full hover:bg-gray-600 border border-gray-500 text-xs font-bold shadow-lg">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" /></svg>
+                            Zoom
+                        </button>
+                        <button data-idx="${i}" class="btn-dl-pkg flex items-center gap-2 px-4 py-1.5 bg-indigo-600 text-white rounded-full hover:bg-indigo-500 text-xs font-bold shadow-lg">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                            Download Package
+                        </button>
+                    </div>
+                    <div class="absolute top-2 left-2 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded backdrop-blur-sm opacity-50">#${i+1}</div>
+                `;
+                els.galleryGrid.appendChild(div);
+            }
+        }
+
+        // --- DOWNLOADS & ZOOM ---
+
+        async function openZoom(idx) {
+            state.zoomedJob = state.generatedJobs[idx];
+            els.zoomModal.classList.remove('hidden');
+            els.zoomImg.src = ''; // Clear prev
+            
+            // Render High Res for Zoom
+            const canvas = await renderJobToCanvas(state.zoomedJob, state.quality / 1200);
+            els.zoomImg.src = canvas.toDataURL('image/jpeg', 0.9);
+        }
+
+        function closeZoom() {
+            els.zoomModal.classList.add('hidden');
+            state.zoomedJob = null;
+        }
+
+        async function downloadPackage(job) {
+            const zip = new JSZip();
+            const multiplier = state.quality / 1200;
+            
+            // 1. Composite
+            const canvas = await renderJobToCanvas(job, multiplier);
+            const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.95));
+            zip.file("composite_result.jpg", blob);
+
+            // 2. Source Images
+            const folder = zip.folder("source_images");
+            job.assignments.forEach((a, idx) => {
+                const imgData = state.fixedImage && state.fixedImage.id === a.imageId ? state.fixedImage : state.variableImages.find(v => v.id === a.imageId);
+                if (imgData) {
+                    folder.file(`slot_${idx+1}_${a.slotId}_${imgData.file.name}`, imgData.file);
+                }
+            });
+
+            const content = await zip.generateAsync({type:"blob"});
+            saveAs(content, `compai_package_${job.id + 1}.zip`);
+        }
+
+        async function downloadAll() {
+            const btn = els.btnDownloadAll;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = `<div class="spinner"></div> Zipping...`;
+            btn.disabled = true;
+
+            try {
+                const zip = new JSZip();
+                const multiplier = state.quality / 1200;
+
+                for (let i = 0; i < state.generatedJobs.length; i++) {
+                    const job = state.generatedJobs[i];
+                    const canvas = await renderJobToCanvas(job, multiplier);
+                    const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.9));
+                    zip.file(`composite_${i+1}.jpg`, blob);
+                }
+
+                const content = await zip.generateAsync({type:"blob"});
+                saveAs(content, "all_composites.zip");
+            } catch(e) {
+                alert("Error generating zip");
+                console.error(e);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        // Start
+        init();
+
+    </script>
+</body>
 </html>
